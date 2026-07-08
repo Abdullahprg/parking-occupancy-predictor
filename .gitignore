@@ -1,0 +1,22 @@
+# Data (generated locally, not source)
+parking.db
+parking_data_raw.csv
+sample_parking_data_DEV_ONLY.csv
+ 
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+ 
+# Env / secrets
+.env
+ 
+# OS
+.DS_Store
+ 
+# Editor
+.vscode/
+.idea/
