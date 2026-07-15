@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parking Occupancy Predictor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f1419 0%, #1a2428 100%);
+      color: #e5e7eb;
+      padding: 32px 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 40px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #10b981;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .headline {
+      font-size: 44px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .headline-accent {
+      color: #d4a574;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #9ca3af;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+
+    /* Main container grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    /* Circular indicator card */
+    .indicator-card {
+      background: linear-gradient(135deg, rgba(212, 165, 116, 0.05), rgba(16, 185, 129, 0.05));
+      border: 1px solid rgba(212, 165, 116, 0.15);
+      border-radius: 16px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .indicator-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(212, 165, 116, 0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .circular-container {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin-bottom: 24px;
+      z-index: 1;
+    }
+
+    svg.progress-circle {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .progress-circle-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.1);
+      stroke-width: 12;
+    }
+
+    .progress-circle-fill {
+      fill: none;
+      stroke: #d4a574;
+      stroke-width: 12;
+      stroke-linecap: round;
+      stroke-dasharray: 471;
+      transition: stroke-dashoffset 0.6s ease;
+    }
+
+    .percentage-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .percentage-value {
+      font-size: 56px;
+      font-weight: 800;
+      color: #d4a574;
+      line-height: 1;
+    }
+
+    .percentage-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .status-indicator {
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-text {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .status-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .detail-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(212, 165, 116, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .detail-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #10b981;
+    }
+
+    .detail-value.warning {
+      color: #f59e0b;
+    }
+
+    .detail-value.danger {
+      color: #ef4444;
+    }
+
+    /* Right column cards */
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Smart recommendation card */
+    .recommendation-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .recommendation-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .recommendation-icon {
+      width: 24px;
+      height: 24px;
+      background: #10b981;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #0f1419;
+      font-weight: 700;
+    }
+
+    .recommendation-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #10b981;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .recommendation-text {
+      font-size: 14px;
+      color: #d1d5db;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .recommendation-badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.2);
+      color: #a7f3d0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Confidence card */
+    .confidence-card {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .confidence-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: #60a5fa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .confidence-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #60a5fa, #3b82f6);
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .confidence-value {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    /* Controls section */
+    .controls-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(212, 165, 116, 0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .control-group {
+      margin-bottom: 28px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    /* Day chips */
+    .day-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 8px 16px;
+      border: 1px solid rgba(212, 165, 116, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      color: #d1d5db;
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: rgba(212, 165, 116, 0.6);
+      background: rgba(212, 165, 116, 0.1);
+      color: #f3f4f6;
+    }
+
+    .chip.active {
+      background: #d4a574;
+      border-color: #d4a574;
+      color: #0f1419;
+      font-weight: 600;
+    }
+
+    /* Slider */
+    .slider-container {
+      position: relative;
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #10b981 0%, #10b981 30%, #fbbf24 60%, #ef4444 100%);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #d4a574;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #d4a574;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .slider-display {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #d4a574;
+      font-family: 'Courier New', monospace;
+    }
+
+    .slider-period {
+      font-size: 12px;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+
+    /* 24-hour outlook */
+    .outlook-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(212, 165, 116, 0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 18px;
+    }
+
+    .outlook-strip {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      margin-bottom: 20px;
+    }
+
+    .hour-block {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .hour-block:hover {
+      transform: scaleY(1.1);
+    }
+
+    .hour-block.occupancy-low {
+      background: #10b981;
+    }
+
+    .hour-block.occupancy-medium {
+      background: #fbbf24;
+    }
+
+    .hour-block.occupancy-high {
+      background: #ef4444;
+    }
+
+    .hour-block.selected {
+      border-color: #d4a574;
+      box-shadow: inset 0 0 0 1px #d4a574, 0 0 0 2px rgba(212, 165, 116, 0.3);
+    }
+
+    .outlook-legend {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    /* Insights section */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .insight-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(212, 165, 116, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .insight-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .insight-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #d4a574;
+      margin-bottom: 4px;
+    }
+
+    .insight-description {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .trend-indicator {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 4px 8px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #a7f3d0;
+      border-radius: 4px;
+    }
+
+    .trend-up {
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #fca5a5 !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .headline {
+        font-size: 36px;
+      }
+
+      .outlook-strip {
+        grid-template-columns: repeat(12, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 16px 12px;
+      }
+
+      .headline {
+        font-size: 28px;
+      }
+
+      .circular-container {
+        width: 160px;
+        height: 160px;
+        margin-bottom: 16px;
+      }
+
+      .percentage-value {
+        font-size: 44px;
+      }
+
+      .indicator-card {
+        padding: 24px;
+      }
+
+      .outlook-strip {
+        grid-template-columns: repeat(8, 1fr);
+      }
+
+      .insights-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chip {
+        padding: 7px 14px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        Live Forecast
+      </div>
+      <h1 class="headline">How busy is it <span class="headline-accent">right now?</span></h1>
+      <p class="subtitle">Pick a day and time to see predicted crowd levels, wait times, and the quietest window left today.</p>
+    </div>
+
+    <!-- Main grid -->
+    <div class="main-grid">
+      <!-- Circular indicator -->
+      <div class="indicator-card">
+        <div class="circular-container">
+          <svg class="progress-circle" viewBox="0 0 200 200">
+            <circle class="progress-circle-bg" cx="100" cy="100" r="75"></circle>
+            <circle class="progress-circle-fill" id="progressFill" cx="100" cy="100" r="75"></circle>
+          </svg>
+          <div class="percentage-text">
+            <div class="percentage-value" id="occupancyPercent">63</div>
+            <div class="percentage-label">Occupied</div>
+          </div>
+        </div>
+
+        <div class="status-indicator">
+          <div class="status-text" id="statusText">Filling Up</div>
+          <div class="status-details">
+            <div class="detail-box">
+              <div class="detail-label">Estimated wait</div>
+              <div class="detail-value" id="waitTime">3 min</div>
+            </div>
+            <div class="detail-box">
+              <div class="detail-label">Best time today</div>
+              <div class="detail-value" id="bestTime">08:00 AM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="right-column">
+        <!-- Smart recommendation -->
+        <div class="recommendation-card">
+          <div class="recommendation-header">
+            <div class="recommendation-icon">✓</div>
+            <span class="recommendation-title">Smart recommendation</span>
+          </div>
+          <p class="recommendation-text" id="recommendationText">Come back at 8:00 AM for the best availability. You'll save ~35 minutes compared to now.</p>
+          <span class="recommendation-badge" id="savingsBadge">Save 35 min</span>
+        </div>
+
+        <!-- Confidence score -->
+        <div class="confidence-card">
+          <div class="confidence-header">Forecast confidence</div>
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="confidenceFill" style="width: 92%;"></div>
+          </div>
+          <div class="confidence-value">92% accuracy on this day/time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-card">
+      <div class="control-group">
+        <label class="control-label">Day</label>
+        <div class="day-chips">
+          <button class="chip active" data-day="Monday">Monday</button>
+          <button class="chip" data-day="Tuesday">Tuesday</button>
+          <button class="chip" data-day="Wednesday">Wednesday</button>
+          <button class="chip" data-day="Thursday">Thursday</button>
+          <button class="chip" data-day="Friday">Friday</button>
+          <button class="chip" data-day="Saturday">Saturday</button>
+          <button class="chip" data-day="Sunday">Sunday</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Time</label>
+        <div class="slider-container">
+          <div class="slider-labels">
+            <span>12 AM</span>
+            <span>6 AM</span>
+            <span>12 PM</span>
+            <span>6 PM</span>
+            <span>11 PM</span>
+          </div>
+          <input type="range" id="hourSlider" min="0" max="23" value="14">
+          <div class="slider-display">
+            <div class="slider-value" id="sliderValue">2:00 PM</div>
+            <div class="slider-period" id="sliderPeriod">Afternoon</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 24-hour outlook -->
+    <div class="outlook-card">
+      <h2 class="card-title">24-hour outlook</h2>
+      <div class="outlook-strip" id="outlookStrip"></div>
+      <div class="outlook-legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #10b981;"></div>
+          <span>Available (0–70%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #fbbf24;"></div>
+          <span>Filling (70–90%)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #ef4444;"></div>
+          <span>Full (90%+)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div style="margin-bottom: 20px;">
+      <h2 class="card-title" style="margin-bottom: 16px;">Parking insights</h2>
+      <div class="insights-grid">
+        <div class="insight-card">
+          <div class="insight-label">Peak hours</div>
+          <div class="insight-value">12–2 PM</div>
+          <div class="insight-description">Busiest time during weekdays</div>
+        </div>
+        <div class="insight-card">
+          <div class="insight-label">Quietest time</div>
+          <div class="insight-value">6–7 AM</div>
+          <div class="insight-description">Best window to arrive</div>
+        </div>
+        <div class="insight-card">
+          <div class="insight-label">Trend</div>
+          <div class="insight-value">↑ 12%</div>
+          <div class="insight-description" style="color: #fca5a5;">Getting busier than usual</div>
+          <div class="trend-indicator trend-up">↑ +12% vs avg</div>
+        </div>
+        <div class="insight-card">
+          <div class="insight-label">Avg turnover</div>
+          <div class="insight-value">18 min</div>
+          <div class="insight-description">Average parking duration</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function generateFakeData(day, hour) {
+      const dayMultiplier = { Monday: 0.8, Tuesday: 0.85, Wednesday: 0.9, Thursday: 0.95, Friday: 1.0, Saturday: 0.75, Sunday: 0.6 };
+      const hourCurve = [10, 12, 15, 20, 30, 35, 45, 55, 70, 75, 80, 85, 88, 85, 80, 75, 70, 65, 55, 45, 35, 25, 18, 12];
+      
+      const baseOccupancy = hourCurve[hour] * (dayMultiplier[day] || 0.8);
+      const occupancy = Math.min(95, Math.max(5, baseOccupancy + (Math.random() * 10 - 5)));
+      const waitTime = Math.max(0, Math.round(occupancy / 20));
+
+      let bestHour = 0;
+      let bestOccupancy = hourCurve[0] * (dayMultiplier[day] || 0.8);
+      hourCurve.forEach((_, h) => {
+        const occ = hourCurve[h] * (dayMultiplier[day] || 0.8);
+        if (occ < bestOccupancy) {
+          bestOccupancy = occ;
+          bestHour = h;
+        }
+      });
+
+      const confidence = 85 + Math.random() * 15;
+
+      return {
+        occupancy_percent: Math.round(occupancy),
+        wait_minutes: waitTime,
+        best_time: formatTime12(bestHour),
+        best_hour: bestHour,
+        best_occupancy: Math.round(bestOccupancy),
+        confidence: Math.round(confidence),
+        hourly_breakdown: hourCurve.map((base, h) => ({
+          hour: h,
+          occupancy: Math.max(5, Math.min(95, base * (dayMultiplier[day] || 0.8) + (Math.random() * 8 - 4)))
+        }))
+      };
+    }
+
+    let currentDay = 'Monday';
+    let currentHour = 14;
+
+    const occupancyPercent = document.getElementById('occupancyPercent');
+    const statusText = document.getElementById('statusText');
+    const waitTime = document.getElementById('waitTime');
+    const bestTime = document.getElementById('bestTime');
+    const recommendationText = document.getElementById('recommendationText');
+    const savingsBadge = document.getElementById('savingsBadge');
+    const confidenceFill = document.getElementById('confidenceFill');
+    const progressFill = document.getElementById('progressFill');
+    
+    const hourSlider = document.getElementById('hourSlider');
+    const sliderValue = document.getElementById('sliderValue');
+    const sliderPeriod = document.getElementById('sliderPeriod');
+    const dayChips = document.querySelectorAll('.chip');
+    const outlookStrip = document.getElementById('outlookStrip');
+
+    function formatTime12(hour) {
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:00 ${ampm}`;
+    }
+
+    function formatTime24(hour) {
+      return `${String(hour).padStart(2, '0')}:00`;
+    }
+
+    function getTimePeriod(hour) {
+      if (hour < 6) return 'Night';
+      if (hour < 12) return 'Morning';
+      if (hour < 18) return 'Afternoon';
+      if (hour < 21) return 'Evening';
+      return 'Late night';
+    }
+
+    function getStatus(occ) {
+      if (occ < 70) return 'Open';
+      if (occ < 90) return 'Filling Up';
+      return 'Full';
+    }
+
+    function getOccupancyClass(occ) {
+      if (occ < 70) return 'occupancy-low';
+      if (occ < 90) return 'occupancy-medium';
+      return 'occupancy-high';
+    }
+
+    function updateUI() {
+      const data = generateFakeData(currentDay, currentHour);
+      const status = getStatus(data.occupancy_percent);
+      const timeSaving = Math.max(0, data.wait_minutes - Math.round(data.best_occupancy / 20));
+
+      occupancyPercent.textContent = data.occupancy_percent;
+      statusText.textContent = status;
+      statusText.style.color = data.occupancy_percent < 70 ? '#10b981' : (data.occupancy_percent < 90 ? '#fbbf24' : '#ef4444');
+      waitTime.textContent = data.wait_minutes + ' min';
+      bestTime.textContent = data.best_time;
+      
+      recommendationText.textContent = `Come back at ${data.best_time} for the best availability. You'll save ~${timeSaving} minutes compared to now.`;
+      savingsBadge.textContent = `Save ${timeSaving} min`;
+      
+      confidenceFill.style.width = data.confidence + '%';
+      
+      sliderValue.textContent = formatTime12(currentHour);
+      sliderPeriod.textContent = getTimePeriod(currentHour);
+
+      const circumference = 2 * Math.PI * 75;
+      const offset = circumference * (1 - data.occupancy_percent / 100);
+      progressFill.style.strokeDashoffset = offset;
+
+      updateOutlookStrip(data.hourly_breakdown);
+    }
+
+    function updateOutlookStrip(breakdown) {
+      outlookStrip.innerHTML = '';
+      breakdown.forEach((hour, index) => {
+        const block = document.createElement('div');
+        block.className = 'hour-block ' + getOccupancyClass(hour.occupancy);
+        if (index === currentHour) block.classList.add('selected');
+        block.title = formatTime24(index) + ' — ' + Math.round(hour.occupancy) + '% full';
+        block.addEventListener('click', () => {
+          hourSlider.value = index;
+          currentHour = index;
+          updateUI();
+        });
+        outlookStrip.appendChild(block);
+      });
+    }
+
+    dayChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        dayChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentDay = chip.getAttribute('data-day');
+        updateUI();
+      });
+    });
+
+    hourSlider.addEventListener('input', (e) => {
+      currentHour = parseInt(e.target.value);
+      updateUI();
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>
+
+  <script>
+    // Fake data generator
+    function generateFakeData(day, hour) {
+      const dayMultiplier = { Monday: 0.8, Tuesday: 0.85, Wednesday: 0.9, Thursday: 0.95, Friday: 1.0, Saturday: 0.75, Sunday: 0.6 };
+      const hourCurve = [10, 12, 15, 20, 30, 35, 45, 55, 70, 75, 80, 85, 88, 85, 80, 75, 70, 65, 55, 45, 35, 25, 18, 12];
+      
+      const baseOccupancy = hourCurve[hour] * (dayMultiplier[day] || 0.8);
+      const occupancy = Math.min(95, Math.max(5, baseOccupancy + (Math.random() * 10 - 5)));
+      const waitTime = Math.max(0, Math.round(occupancy / 20));
+
+      let bestHour = 0;
+      let bestOccupancy = hourCurve[0] * (dayMultiplier[day] || 0.8);
+      hourCurve.forEach((_, h) => {
+        const occ = hourCurve[h] * (dayMultiplier[day] || 0.8);
+        if (occ < bestOccupancy) {
+          bestOccupancy = occ;
+          bestHour = h;
+        }
+      });
+
+      return {
+        occupancy_percent: Math.round(occupancy),
+        wait_minutes: waitTime,
+        best_time: formatTime(bestHour),
+        best_hour: bestHour,
+        best_occupancy: Math.round(bestOccupancy),
+        hourly_breakdown: hourCurve.map((base, h) => ({
+          hour: h,
+          occupancy: Math.max(5, Math.min(95, base * (dayMultiplier[day] || 0.8) + (Math.random() * 8 - 4)))
+        }))
+      };
+    }
+
+    let currentDay = 'Monday';
+    let currentHour = 14;
+
+    // DOM elements
+    const metricOccupancy = document.getElementById('metricOccupancy');
+    const metricStatus = document.getElementById('metricStatus');
+    const metricWait = document.getElementById('metricWait');
+    const metricBestTime = document.getElementById('metricBestTime');
+    const metricBestOccupancy = document.getElementById('metricBestOccupancy');
+    
+    const detailOccupancy = document.getElementById('detailOccupancy');
+    const detailStatus = document.getElementById('detailStatus');
+    const detailWait = document.getElementById('detailWait');
+    
+    const bestTimeDisplay = document.getElementById('bestTimeDisplay');
+    const bestOccupancyPercent = document.getElementById('bestOccupancyPercent');
+    const savingsInfo = document.getElementById('savingsInfo');
+    
+    const hourSlider = document.getElementById('hourSlider');
+    const sliderValue = document.getElementById('sliderValue');
+    const sliderPeriod = document.getElementById('sliderPeriod');
+    const dayChips = document.querySelectorAll('.chip');
+    const outlookStrip = document.getElementById('outlookStrip');
+
+    function formatTime(hour) {
+      return `${String(hour).padStart(2, '0')}:00`;
+    }
+
+    function getTimePeriod(hour) {
+      if (hour < 6) return 'Night';
+      if (hour < 12) return 'Morning';
+      if (hour < 18) return 'Afternoon';
+      if (hour < 21) return 'Evening';
+      return 'Late night';
+    }
+
+    function getStatusLabel(occupancy) {
+      if (occupancy < 70) return 'Available';
+      if (occupancy < 90) return 'Filling up';
+      return 'Full';
+    }
+
+    function getStatusClass(occupancy) {
+      if (occupancy < 70) return 'status-open';
+      if (occupancy < 90) return 'status-filling';
+      return 'status-full';
+    }
+
+    function getOccupancyClass(occupancy) {
+      if (occupancy < 70) return 'occupancy-low';
+      if (occupancy < 90) return 'occupancy-medium';
+      return 'occupancy-high';
+    }
+
+    function updateUI() {
+      const data = generateFakeData(currentDay, currentHour);
+      const status = getStatusLabel(data.occupancy_percent);
+      const statusClass = getStatusClass(data.occupancy_percent);
+      const timeSaving = Math.max(0, data.wait_minutes - Math.round(data.best_occupancy / 20));
+
+      // Update metrics
+      metricOccupancy.textContent = data.occupancy_percent + '%';
+      metricStatus.textContent = status;
+      metricStatus.className = 'metric-status ' + statusClass;
+      metricWait.textContent = data.wait_minutes + ' min';
+      metricBestTime.textContent = data.best_time;
+      metricBestOccupancy.textContent = data.best_occupancy + '%';
+
+      // Update detail card
+      detailOccupancy.textContent = data.occupancy_percent;
+      detailStatus.textContent = status;
+      detailWait.textContent = data.wait_minutes + ' min';
+
+      // Update best time card
+      bestTimeDisplay.textContent = data.best_time;
+      bestOccupancyPercent.textContent = data.best_occupancy + '%';
+      savingsInfo.textContent = timeSaving > 0 ? 'Save up to ' + timeSaving + ' minutes' : 'Already optimal';
+
+      // Update slider display
+      sliderValue.textContent = formatTime(currentHour);
+      sliderPeriod.textContent = getTimePeriod(currentHour);
+
+      // Update outlook
+      updateOutlookStrip(data.hourly_breakdown);
+    }
+
+    function updateOutlookStrip(breakdown) {
+      outlookStrip.innerHTML = '';
+      breakdown.forEach((hour, index) => {
+        const block = document.createElement('div');
+        block.className = 'hour-block ' + getOccupancyClass(hour.occupancy);
+        if (index === currentHour) block.classList.add('selected');
+        block.title = formatTime(index) + ' — ' + Math.round(hour.occupancy) + '% full';
+        block.addEventListener('click', () => {
+          hourSlider.value = index;
+          currentHour = index;
+          updateUI();
+        });
+        outlookStrip.appendChild(block);
+      });
+    }
+
+    dayChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        dayChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentDay = chip.getAttribute('data-day');
+        updateUI();
+      });
+    });
+
+    hourSlider.addEventListener('input', (e) => {
+      currentHour = parseInt(e.target.value);
+      updateUI();
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>
